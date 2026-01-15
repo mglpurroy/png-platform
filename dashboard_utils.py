@@ -34,6 +34,47 @@ ACLED_DATA = Path("acled_Papua_New_Guinea.csv")
 START_YEAR = 1997
 END_YEAR = 2025
 
+def get_data_date_range(conflict_data=None):
+    """Get the earliest and latest year-month from conflict data"""
+    if conflict_data is None:
+        # Try to load conflict data
+        try:
+            if ACLED_DATA.exists():
+                acled_df = pd.read_csv(ACLED_DATA)
+                acled_df['event_date'] = pd.to_datetime(acled_df['event_date'])
+                min_date = acled_df['event_date'].min()
+                max_date = acled_df['event_date'].max()
+                return {
+                    'min_year': min_date.year,
+                    'min_month': min_date.month,
+                    'max_year': max_date.year,
+                    'max_month': max_date.month
+                }
+        except Exception:
+            pass
+    
+    # Fallback to conflict data if provided
+    if conflict_data is not None and not conflict_data.empty:
+        if 'year' in conflict_data.columns and 'month' in conflict_data.columns:
+            min_year = conflict_data['year'].min()
+            max_year = conflict_data['year'].max()
+            min_month = conflict_data[conflict_data['year'] == min_year]['month'].min()
+            max_month = conflict_data[conflict_data['year'] == max_year]['month'].max()
+            return {
+                'min_year': int(min_year),
+                'min_month': int(min_month),
+                'max_year': int(max_year),
+                'max_month': int(max_month)
+            }
+    
+    # Default fallback
+    return {
+        'min_year': START_YEAR,
+        'min_month': 1,
+        'max_year': END_YEAR,
+        'max_month': 12
+    }
+
 # Initialize session state for performance tracking
 def init_session_state():
     """Initialize session state variables"""

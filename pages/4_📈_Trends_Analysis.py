@@ -87,13 +87,20 @@ st.sidebar.header("📊 Analysis Parameters")
 # Time period selection
 st.sidebar.subheader("📅 Time Period")
 
+# Get available date range from data
+from dashboard_utils import get_data_date_range
+date_range = get_data_date_range(st.session_state.conflict_data)
+min_year = date_range['min_year']
+max_year = date_range['max_year']
+max_month = date_range['max_month']
+
 col1, col2 = st.sidebar.columns(2)
 
 with col1:
     start_year = st.selectbox(
         "Start Year",
-        options=list(range(1997, 2026)),
-        index=0,  # Default to 1997
+        options=list(range(min_year, max_year + 1)),
+        index=0,  # Default to earliest year
         key="trends_start_year"
     )
     start_month = st.selectbox(
@@ -107,15 +114,30 @@ with col1:
 with col2:
     end_year = st.selectbox(
         "End Year",
-        options=list(range(1997, 2026)),
-        index=28,  # Default to 2025
+        options=list(range(min_year, max_year + 1)),
+        index=len(list(range(min_year, max_year + 1))) - 1,  # Default to latest year
         key="trends_end_year"
     )
+    # Limit end month based on selected year
+    if end_year == max_year:
+        max_end_month = max_month
+    else:
+        max_end_month = 12
+    
+    end_month_options = list(range(1, max_end_month + 1))
+    # Get current end_month from session state, or default to latest available
+    current_end_month = st.session_state.get('trends_end_month', min(len(end_month_options) - 1, 10) if max_end_month >= 11 else len(end_month_options) - 1)
+    # Ensure current selection is within valid range
+    if current_end_month >= len(end_month_options):
+        current_end_month = len(end_month_options) - 1
+    elif current_end_month < 0:
+        current_end_month = 0
+    
     end_month = st.selectbox(
         "End Month",
-        options=list(range(1, 13)),
+        options=end_month_options,
         format_func=lambda x: datetime.date(2020, x, 1).strftime('%B'),
-        index=10,  # Default to November
+        index=current_end_month,
         key="trends_end_month"
     )
 
