@@ -260,8 +260,7 @@ def load_population_data():
                             # Standardize columns using the helper function
                             llg_gdf = standardize_admin_columns(llg_gdf, level=3)
                             
-                            # Debug: show what columns we have after standardization
-                            st.info(f"Boundaries loaded: {len(llg_gdf)} LLGs. Columns: {list(llg_gdf.columns)[:10]}")
+                            st.info(f"Boundaries loaded: {len(llg_gdf)} LLGs")
                             
                             # Ensure we have required columns - check and standardize if needed
                             if 'ADM3_PCODE' not in llg_gdf.columns:
@@ -636,7 +635,6 @@ def standardize_admin_columns(gdf, level):
     gdf = gdf.copy()
     column_mapping = {}
     
-    # Debug: show available columns (commented out - st.debug doesn't exist in Streamlit)
     # Columns available: {list(gdf.columns)}
     
     # Map columns for the specified level and parent levels

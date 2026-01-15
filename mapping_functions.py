@@ -96,10 +96,17 @@ def create_admin_map(aggregated, boundaries, agg_level, map_var, agg_thresh, per
     # Create map with optimized settings - centered on Papua New Guinea
     m = folium.Map(
         location=[-6.0, 150.0],  # Papua New Guinea center coordinates
-        zoom_start=6, 
+        zoom_start=7,  # Increased zoom to focus on PNG
         tiles='OpenStreetMap',
-        prefer_canvas=True
+        prefer_canvas=True,
+        min_zoom=5,
+        max_zoom=15
     )
+    
+    # Fit map bounds to Papua New Guinea if we have boundary data
+    if boundaries and 1 in boundaries and not boundaries[1].empty:
+        bounds = boundaries[1].total_bounds  # [minx, miny, maxx, maxy]
+        m.fit_bounds([[bounds[1], bounds[0]], [bounds[3], bounds[2]]])  # [[lat_min, lon_min], [lat_max, lon_max]]
     
     # Pre-calculate colors and status for better performance
     def get_color_status(value):
@@ -278,12 +285,18 @@ def create_llg_map(llg_data, boundaries, period_info, rate_thresh, abs_thresh, s
     # Create map with optimized settings - centered on Papua New Guinea
     m = folium.Map(
         location=[-6.0, 150.0],  # Papua New Guinea center coordinates
-        zoom_start=8, 
+        zoom_start=7,  # Increased zoom to focus on PNG
         tiles='CartoDB positron',  # Lighter, faster tiles
         prefer_canvas=True,
-        max_zoom=12,
+        min_zoom=5,
+        max_zoom=15,
         zoom_control=True
     )
+    
+    # Fit map bounds to Papua New Guinea if we have boundary data
+    if boundaries and 1 in boundaries and not boundaries[1].empty:
+        bounds = boundaries[1].total_bounds  # [minx, miny, maxx, maxy]
+        m.fit_bounds([[bounds[1], bounds[0]], [bounds[3], bounds[2]]])  # [[lat_min, lon_min], [lat_max, lon_max]]
     
     # Create a single GeoJson layer with all LLGs (much faster than individual layers)
     # Prepare fields for tooltip and popup

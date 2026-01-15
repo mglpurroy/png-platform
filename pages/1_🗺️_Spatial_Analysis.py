@@ -219,11 +219,6 @@ with st.spinner("Processing data for selected period..."):
     # Check if we have population data
     if pop_data.empty or admin_data['admin3'].empty:
         st.warning("⚠️ No population data available. Please ensure the population data file exists and matches the boundary data.")
-        st.info(f"Population data: {len(pop_data)} rows, Admin3 data: {len(admin_data.get('admin3', pd.DataFrame()))} rows")
-        if boundaries and 3 in boundaries and not boundaries[3].empty:
-            st.info(f"Boundaries admin3: {len(boundaries[3])} features")
-            if 'ADM3_PCODE' in boundaries[3].columns:
-                st.info(f"Sample boundary PCODEs: {boundaries[3]['ADM3_PCODE'].head(3).tolist()}")
         st.stop()
     
     # Classify and aggregate

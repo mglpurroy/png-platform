@@ -4,9 +4,14 @@ import sys
 from pathlib import Path
 import datetime
 import time
-import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
+
+try:
+    import plotly.express as px
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+    PLOTLY_AVAILABLE = True
+except ImportError:
+    PLOTLY_AVAILABLE = False
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -28,6 +33,10 @@ st.set_page_config(
 # Initialize
 init_session_state()
 load_custom_css()
+
+if not PLOTLY_AVAILABLE:
+    st.error("Plotly not installed. Please run: pip install plotly")
+    st.stop()
 
 # Header
 st.markdown("""
