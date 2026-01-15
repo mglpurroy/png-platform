@@ -61,10 +61,8 @@ print(f"   ✓ Loaded {len(acled_df):,} events")
 
 # Step 2: Filter for events with fatalities (BRD events)
 print("\n2. Filtering for events with fatalities...")
-brd_events = acled_df[
-    (~acled_df['event_type'].isin(['Protests', 'Riots'])) &
-    (acled_df['fatalities'] > 0)
-].copy()
+# Include all events with fatalities, including Riots which often have significant casualties
+brd_events = acled_df[acled_df['fatalities'] > 0].copy()
 print(f"   ✓ Filtered to {len(brd_events):,} events with fatalities")
 
 # Step 3: Convert event_date to datetime and extract year/month

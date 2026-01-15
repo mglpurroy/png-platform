@@ -454,10 +454,8 @@ def load_conflict_data():
         png_acled['year'] = png_acled['event_date'].dt.year
         
         # Process the data to match our format
-        brd_events = png_acled[
-            (~png_acled['event_type'].isin(['Protests', 'Riots'])) &
-            (png_acled['fatalities'] > 0)
-        ].copy()
+        # Include all events with fatalities, including Riots which often have significant casualties
+        brd_events = png_acled[png_acled['fatalities'] > 0].copy()
         
         # Categorize violence
         def categorize_violence(interaction):
