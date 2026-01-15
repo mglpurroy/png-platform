@@ -1049,12 +1049,56 @@ def classify_and_aggregate_data(pop_data, admin_data, conflict_data, period_info
     # Filter conflict data for selected period
     period_conflict = filter_data_by_period_impl(conflict_data, period_info)
     
+    # Fix ADM1/ADM2 values in pop_data by doing spatial join with correct boundary files
+    pop_data = pop_data.copy()
+    
+    # Load boundary files to get correct ADM1/ADM2 mappings via spatial join
+    try:
+        admin1_boundaries = gpd.read_file(DATA_PATH / "boundaries/admin1_regions.geojson")
+        admin2_boundaries = gpd.read_file(DATA_PATH / "boundaries/admin2_subprefectures.geojson")
+        admin3_boundaries = gpd.read_file(DATA_PATH / "boundaries/admin3_subprefectures.geojson")
+        
+        if not admin3_boundaries.empty and 'geometry' in admin3_boundaries.columns:
+            # Convert pop_data to GeoDataFrame if it has geometry, or use admin3 boundaries
+            if 'geometry' in pop_data.columns:
+                pop_gdf = gpd.GeoDataFrame(pop_data, geometry='geometry', crs=admin3_boundaries.crs)
+            else:
+                # Merge pop_data with admin3 boundaries to get geometry
+                admin3_boundaries['ADM3_PCODE'] = admin3_boundaries['ADM3_PCODE'].astype(str)
+                pop_data['ADM3_PCODE'] = pop_data['ADM3_PCODE'].astype(str)
+                pop_gdf = pd.merge(pop_data, admin3_boundaries[['ADM3_PCODE', 'geometry']], on='ADM3_PCODE', how='left')
+                pop_gdf = gpd.GeoDataFrame(pop_gdf, geometry='geometry', crs=admin3_boundaries.crs)
+            
+            # Spatial join with admin1 to get correct ADM1 values
+            if not admin1_boundaries.empty and 'geometry' in admin1_boundaries.columns:
+                admin1_join = admin1_boundaries[['ADM1_PCODE', 'ADM1_EN', 'geometry']].copy()
+                pop_gdf = gpd.sjoin(pop_gdf, admin1_join, how='left', predicate='within')
+                # Update ADM1 columns
+                pop_data['ADM1_PCODE'] = pop_gdf['ADM1_PCODE'].values
+                pop_data['ADM1_EN'] = pop_gdf['ADM1_EN'].values
+            
+            # Spatial join with admin2 to get correct ADM2 values
+            if not admin2_boundaries.empty and 'geometry' in admin2_boundaries.columns:
+                admin2_join = admin2_boundaries[['ADM2_PCODE', 'ADM2_EN', 'geometry']].copy()
+                pop_gdf = gpd.sjoin(pop_gdf, admin2_join, how='left', predicate='within')
+                # Update ADM2 columns (remove duplicate geometry column if exists)
+                if 'ADM2_PCODE_right' in pop_gdf.columns:
+                    pop_data['ADM2_PCODE'] = pop_gdf['ADM2_PCODE_right'].values
+                    pop_data['ADM2_EN'] = pop_gdf['ADM2_EN_right'].values
+                else:
+                    pop_data['ADM2_PCODE'] = pop_gdf['ADM2_PCODE'].values
+                    pop_data['ADM2_EN'] = pop_gdf['ADM2_EN'].values
+    except Exception as e:
+        # If spatial join fails, continue with existing values (they may be wrong but won't crash)
+        import warnings
+        warnings.warn(f"Could not fix ADM1/ADM2 values via spatial join: {e}")
+        pass
+    
     # Check if we have LLG-level (admin3) conflict data
     if len(period_conflict) > 0 and 'ADM3_PCODE' in period_conflict.columns and period_conflict['ADM3_PCODE'].notna().any():
         # Ensure ADM3_PCODE is string type for both dataframes before merging
         period_conflict = period_conflict.copy()
         period_conflict['ADM3_PCODE'] = period_conflict['ADM3_PCODE'].astype(str)
-        pop_data = pop_data.copy()
         pop_data['ADM3_PCODE'] = pop_data['ADM3_PCODE'].astype(str)
         
         conflict_llg = period_conflict.groupby(['ADM3_PCODE'], as_index=False).agg({
