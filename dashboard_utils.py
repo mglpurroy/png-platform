@@ -1050,42 +1050,56 @@ def classify_and_aggregate_data(pop_data, admin_data, conflict_data, period_info
     period_conflict = filter_data_by_period_impl(conflict_data, period_info)
     
     # Fix ADM1/ADM2 values in pop_data by doing spatial join with correct boundary files
+    # The population data may have incorrect ADM1/ADM2 values (numeric indices), so we fix them
     pop_data = pop_data.copy()
     
     # Load boundary files to get correct ADM1/ADM2 mappings via spatial join
     try:
         admin1_boundaries = gpd.read_file(DATA_PATH / "boundaries/admin1_regions.geojson")
         admin2_boundaries = gpd.read_file(DATA_PATH / "boundaries/admin2_subprefectures.geojson")
-        admin3_boundaries = gpd.read_file(DATA_PATH / "boundaries/admin3_subprefectures.geojson")
         
-        if not admin3_boundaries.empty and 'geometry' in admin3_boundaries.columns:
-            # Convert pop_data to GeoDataFrame if it has geometry, or use admin3 boundaries
-            if 'geometry' in pop_data.columns:
-                pop_gdf = gpd.GeoDataFrame(pop_data, geometry='geometry', crs=admin3_boundaries.crs)
-            else:
-                # Merge pop_data with admin3 boundaries to get geometry
+        # Ensure pop_data is a GeoDataFrame with geometry
+        if isinstance(pop_data, gpd.GeoDataFrame) and 'geometry' in pop_data.columns:
+            pop_gdf = pop_data.copy()
+        else:
+            # If not GeoDataFrame, try to get geometry from admin3 boundaries
+            admin3_boundaries = gpd.read_file(DATA_PATH / "boundaries/admin3_subprefectures.geojson")
+            if not admin3_boundaries.empty:
                 admin3_boundaries['ADM3_PCODE'] = admin3_boundaries['ADM3_PCODE'].astype(str)
                 pop_data['ADM3_PCODE'] = pop_data['ADM3_PCODE'].astype(str)
                 pop_gdf = pd.merge(pop_data, admin3_boundaries[['ADM3_PCODE', 'geometry']], on='ADM3_PCODE', how='left')
                 pop_gdf = gpd.GeoDataFrame(pop_gdf, geometry='geometry', crs=admin3_boundaries.crs)
-            
+            else:
+                pop_gdf = None
+        
+        if pop_gdf is not None and not pop_gdf.empty:
             # Spatial join with admin1 to get correct ADM1 values
             if not admin1_boundaries.empty and 'geometry' in admin1_boundaries.columns:
                 admin1_join = admin1_boundaries[['ADM1_PCODE', 'ADM1_EN', 'geometry']].copy()
+                # Ensure CRS match
+                if pop_gdf.crs != admin1_join.crs:
+                    admin1_join = admin1_join.to_crs(pop_gdf.crs)
                 pop_gdf = gpd.sjoin(pop_gdf, admin1_join, how='left', predicate='within')
-                # Update ADM1 columns
-                pop_data['ADM1_PCODE'] = pop_gdf['ADM1_PCODE'].values
-                pop_data['ADM1_EN'] = pop_gdf['ADM1_EN'].values
+                # Update ADM1 columns (handle both left and right column names from join)
+                if 'ADM1_PCODE_right' in pop_gdf.columns:
+                    pop_data['ADM1_PCODE'] = pop_gdf['ADM1_PCODE_right'].values
+                    pop_data['ADM1_EN'] = pop_gdf['ADM1_EN_right'].values
+                elif 'ADM1_PCODE' in pop_gdf.columns:
+                    pop_data['ADM1_PCODE'] = pop_gdf['ADM1_PCODE'].values
+                    pop_data['ADM1_EN'] = pop_gdf['ADM1_EN'].values
             
             # Spatial join with admin2 to get correct ADM2 values
             if not admin2_boundaries.empty and 'geometry' in admin2_boundaries.columns:
                 admin2_join = admin2_boundaries[['ADM2_PCODE', 'ADM2_EN', 'geometry']].copy()
+                # Ensure CRS match
+                if pop_gdf.crs != admin2_join.crs:
+                    admin2_join = admin2_join.to_crs(pop_gdf.crs)
                 pop_gdf = gpd.sjoin(pop_gdf, admin2_join, how='left', predicate='within')
-                # Update ADM2 columns (remove duplicate geometry column if exists)
+                # Update ADM2 columns
                 if 'ADM2_PCODE_right' in pop_gdf.columns:
                     pop_data['ADM2_PCODE'] = pop_gdf['ADM2_PCODE_right'].values
                     pop_data['ADM2_EN'] = pop_gdf['ADM2_EN_right'].values
-                else:
+                elif 'ADM2_PCODE' in pop_gdf.columns:
                     pop_data['ADM2_PCODE'] = pop_gdf['ADM2_PCODE'].values
                     pop_data['ADM2_EN'] = pop_gdf['ADM2_EN'].values
     except Exception as e:
