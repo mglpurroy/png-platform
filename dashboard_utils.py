@@ -524,6 +524,8 @@ def load_conflict_data():
                 'statename': 'ADM1_EN'  # Legacy column name (actually province)
             })
             
+            # Ensure all PCODE columns are strings for consistent merging
+            conflict_processed['ADM3_PCODE'] = conflict_processed['ADM3_PCODE'].astype(str)
             conflict_processed['ADM1_PCODE'] = conflict_processed['ADM1_EN'].astype(str)
             conflict_processed['ADM2_PCODE'] = conflict_processed['ADM2_EN'].astype(str)
         else:
@@ -1049,11 +1051,20 @@ def classify_and_aggregate_data(pop_data, admin_data, conflict_data, period_info
     
     # Check if we have LLG-level (admin3) conflict data
     if len(period_conflict) > 0 and 'ADM3_PCODE' in period_conflict.columns and period_conflict['ADM3_PCODE'].notna().any():
+        # Ensure ADM3_PCODE is string type for both dataframes before merging
+        period_conflict = period_conflict.copy()
+        period_conflict['ADM3_PCODE'] = period_conflict['ADM3_PCODE'].astype(str)
+        pop_data = pop_data.copy()
+        pop_data['ADM3_PCODE'] = pop_data['ADM3_PCODE'].astype(str)
+        
         conflict_llg = period_conflict.groupby(['ADM3_PCODE'], as_index=False).agg({
             'ACLED_BRD_state': 'sum',
             'ACLED_BRD_nonstate': 'sum',
             'ACLED_BRD_total': 'sum'
         })
+        
+        # Ensure conflict_llg ADM3_PCODE is also string
+        conflict_llg['ADM3_PCODE'] = conflict_llg['ADM3_PCODE'].astype(str)
         
         merged = pd.merge(pop_data, conflict_llg, on='ADM3_PCODE', how='left')
         
