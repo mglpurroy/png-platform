@@ -1091,24 +1091,42 @@ def classify_and_aggregate_data(pop_data, admin_data, conflict_data, period_info
     else:  # ADM2
         group_cols = ['ADM2_PCODE', 'ADM2_EN', 'ADM1_PCODE', 'ADM1_EN']
     
+    # Count LLGs by counting ADM3_PCODE (but we need to keep group_cols)
+    # Use a dummy column for counting if ADM3_PCODE is in group_cols
+    count_col = 'ADM3_PCODE' if 'ADM3_PCODE' not in group_cols else 'ADM3_PCODE'
+    
     aggregated = merged.groupby(group_cols, as_index=False).agg({
         'pop_count': 'sum',
         'violence_affected': 'sum',
-        'ADM3_PCODE': 'count',
+        count_col: 'count',
         'ACLED_BRD_total': 'sum'
     })
     
-    aggregated.rename(columns={'ADM3_PCODE': 'total_llgs'}, inplace=True)  # Internal column name for LLG count
+    # Rename the count column to total_llgs (but keep group_cols intact)
+    if count_col in aggregated.columns:
+        aggregated.rename(columns={count_col: 'total_llgs'}, inplace=True)
     
     # Calculate shares
     aggregated['share_llgs_affected'] = aggregated['violence_affected'] / aggregated['total_llgs']
     
     # Calculate population share
-    affected_pop = merged[merged['violence_affected']].groupby(group_cols[0], as_index=False)['pop_count'].sum()
-    affected_pop.rename(columns={'pop_count': 'affected_population'}, inplace=True)
-    aggregated = pd.merge(aggregated, affected_pop, on=group_cols[0], how='left')
-    aggregated['affected_population'] = aggregated['affected_population'].fillna(0)
-    aggregated['share_population_affected'] = aggregated['affected_population'] / aggregated['pop_count']
+    # Filter affected LLGs and group by all group_cols to ensure correct aggregation
+    affected_llgs = merged[merged['violence_affected']].copy()
+    if len(affected_llgs) > 0:
+        affected_pop = affected_llgs.groupby(group_cols, as_index=False)['pop_count'].sum()
+        affected_pop.rename(columns={'pop_count': 'affected_population'}, inplace=True)
+        # Merge on all group_cols to ensure correct matching
+        aggregated = pd.merge(aggregated, affected_pop, on=group_cols, how='left')
+        aggregated['affected_population'] = aggregated['affected_population'].fillna(0)
+    else:
+        # No affected LLGs - set to 0
+        aggregated['affected_population'] = 0
+    
+    # Calculate share (avoid division by zero)
+    aggregated['share_population_affected'] = aggregated.apply(
+        lambda row: row['affected_population'] / row['pop_count'] if row['pop_count'] > 0 else 0.0,
+        axis=1
+    )
     
     # Mark units above threshold
     aggregated['above_threshold'] = aggregated['share_llgs_affected'] > agg_thresh
