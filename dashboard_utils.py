@@ -431,7 +431,7 @@ def load_conflict_data():
     start_time = time.time()
     
     # Check cache first
-    cache_key = get_cache_key("papua_new_guinea_conflict_data", "v2")
+    cache_key = get_cache_key("papua_new_guinea_conflict_data", "v3")  # Updated to v3 after including Riots events
     cached_data = load_from_cache(cache_key)
     if cached_data is not None:
         log_performance("load_conflict_data", time.time() - start_time)
