@@ -63,7 +63,7 @@ def create_admin_map(aggregated, boundaries, agg_level, map_var, agg_thresh, per
         agg_pcode_col = 'ADM2_PCODE'  # From aggregated data
         agg_name_col = 'ADM2_EN'      # From aggregated data
     
-    if map_var == 'share_llgs':
+    if map_var == 'share_llgs_affected':
         value_col = 'share_llgs_affected'
         value_label = 'Share of LLGs Affected'
     else:
