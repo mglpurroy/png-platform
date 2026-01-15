@@ -1091,20 +1091,14 @@ def classify_and_aggregate_data(pop_data, admin_data, conflict_data, period_info
     else:  # ADM2
         group_cols = ['ADM2_PCODE', 'ADM2_EN', 'ADM1_PCODE', 'ADM1_EN']
     
-    # Count LLGs by counting ADM3_PCODE (but we need to keep group_cols)
-    # Use a dummy column for counting if ADM3_PCODE is in group_cols
-    count_col = 'ADM3_PCODE' if 'ADM3_PCODE' not in group_cols else 'ADM3_PCODE'
-    
     aggregated = merged.groupby(group_cols, as_index=False).agg({
         'pop_count': 'sum',
         'violence_affected': 'sum',
-        count_col: 'count',
+        'ADM3_PCODE': 'count',
         'ACLED_BRD_total': 'sum'
     })
     
-    # Rename the count column to total_llgs (but keep group_cols intact)
-    if count_col in aggregated.columns:
-        aggregated.rename(columns={count_col: 'total_llgs'}, inplace=True)
+    aggregated.rename(columns={'ADM3_PCODE': 'total_llgs'}, inplace=True)  # Internal column name for LLG count
     
     # Calculate shares
     aggregated['share_llgs_affected'] = aggregated['violence_affected'] / aggregated['total_llgs']
